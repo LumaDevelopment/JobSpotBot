@@ -83,8 +83,8 @@ def load_scrapers_from_path(scrapers_path: Path) -> set[AbstractScraper]:
             # Add it to list of scrapers
             scrapers.add(scraper_instance)
 
-        except:
-            print(f"Failed to load scraper: {module_name}")
+        except Exception as e:
+            print(f"Failed to load scraper {module_name}:", e)
 
     return scrapers
 
