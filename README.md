@@ -38,6 +38,6 @@ scrapers from the `scrapers/` directory. A scraper has three requirements:
 
 1. The scraper must be one file.
 2. The scraper's file name must be friendly to use with [`importlib.import_module()`](https://docs.python.org/3.11/library/importlib.html#importlib.import_module)
-3. The scraper must have a class named `Scraper` that extends `AbstractScraper` from `abstract_scraper.py`.
+3. The scraper must have a class named `Scraper` that extends `AbstractScraper` from [`abstract_scraper.py`](https://github.com/LumaDevelopment/JobSpotBot/blob/master/abstract_scraper.py).
 
-An example scraper is offered in the `scrapers/example_scraper.py` file of this repository.
+An example scraper is offered in the [`scrapers/example_scraper.py`](https://github.com/LumaDevelopment/JobSpotBot/blob/master/scrapers/example_scraper.py) file of this repository.
