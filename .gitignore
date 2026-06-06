@@ -1,3 +1,7 @@
 /bot_token.txt
 /storage.json
 /venv/
+scrapers/activision_blizzternships_scraper.py
+scrapers/blizzternships_scraper.py
+blizz_jobspotbot_2.zip
+__pycache__
