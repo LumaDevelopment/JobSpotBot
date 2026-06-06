@@ -35,8 +35,19 @@ class StorageObject:
     color: str
     keywords: set
     known_jobs: set
+    known_jobs_by_scraper: dict[str, set]
 
-    def __init__(self, bot_token, active_guilds, active_channels, check_interval_in_s, color, keywords, known_jobs):
+    def __init__(
+            self,
+            bot_token,
+            active_guilds,
+            active_channels,
+            check_interval_in_s,
+            color,
+            keywords,
+            known_jobs,
+            known_jobs_by_scraper=None
+    ):
         self.bot_token = bot_token
         self.active_guilds = active_guilds
         self.active_channels = active_channels
@@ -44,6 +55,7 @@ class StorageObject:
         self.color = color
         self.keywords = keywords
         self.known_jobs = known_jobs
+        self.known_jobs_by_scraper = known_jobs_by_scraper or dict()
 
 
 def get_default_storage_object() -> StorageObject:
@@ -85,6 +97,7 @@ class Storage:
             # Decode the object and set the
             # corresponding instance variable
             self._storage = jsonpickle.decode(text)
+            self.ensure_known_jobs_by_scraper_exists()
 
         except FileNotFoundError:
             print("No storage file, creating default...")
@@ -93,6 +106,22 @@ class Storage:
             self._storage = get_default_storage_object()
             self.update_storage_file()
             raise Exception("Created new storage file, please set bot token and relaunch!")
+
+    def ensure_known_jobs_by_scraper_exists(self):
+        if not hasattr(self._storage, "known_jobs_by_scraper"):
+            self._storage.known_jobs_by_scraper = dict()
+
+        if self._storage.known_jobs_by_scraper is None:
+            self._storage.known_jobs_by_scraper = dict()
+
+    def sync_known_jobs_from_scraper_snapshots(self):
+        self.ensure_known_jobs_by_scraper_exists()
+
+        known_jobs = set()
+        for scraper_known_jobs in self._storage.known_jobs_by_scraper.values():
+            known_jobs.update(scraper_known_jobs)
+
+        self._storage.known_jobs = known_jobs
 
     def add_keyword(self, new_keyword) -> bool:
         """
@@ -160,10 +189,39 @@ class Storage:
         return self._storage.keywords
 
     def get_known_jobs(self) -> set:
-        return self._storage.known_jobs
+        self.ensure_known_jobs_by_scraper_exists()
+
+        if len(self._storage.known_jobs_by_scraper) < 1:
+            return self._storage.known_jobs
+
+        known_jobs = set()
+        for scraper_known_jobs in self._storage.known_jobs_by_scraper.values():
+            known_jobs.update(scraper_known_jobs)
+
+        return known_jobs
 
     def set_known_jobs(self, new_known_jobs: set):
+        self.ensure_known_jobs_by_scraper_exists()
         self._storage.known_jobs = new_known_jobs
+        self._storage.known_jobs_by_scraper = dict()
+        self.update_storage_file()
+
+    def has_known_jobs_for_scraper(self, scraper_id: str) -> bool:
+        self.ensure_known_jobs_by_scraper_exists()
+        return scraper_id in self._storage.known_jobs_by_scraper
+
+    def get_known_jobs_for_scraper(self, scraper_id: str) -> set:
+        self.ensure_known_jobs_by_scraper_exists()
+
+        if self.has_known_jobs_for_scraper(scraper_id):
+            return self._storage.known_jobs_by_scraper[scraper_id]
+
+        return self._storage.known_jobs
+
+    def set_known_jobs_for_scraper(self, scraper_id: str, new_known_jobs: set):
+        self.ensure_known_jobs_by_scraper_exists()
+        self._storage.known_jobs_by_scraper[scraper_id] = new_known_jobs
+        self.sync_known_jobs_from_scraper_snapshots()
         self.update_storage_file()
 
     def update_storage_file(self):

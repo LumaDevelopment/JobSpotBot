@@ -16,6 +16,11 @@ from persistent_storage import Storage
 # ---------- METHODS ----------
 
 
+def get_scraper_id(scraper: AbstractScraper) -> str:
+    scraper_class = scraper.__class__
+    return f"{scraper_class.__module__}.{scraper_class.__name__}"
+
+
 def filter_jobs_with_keywords(new_jobs: set[tuple[str, str]], keywords: set) -> set[tuple[str, str]]:
     """
     Given a set of new jobs and keywords, returns a
@@ -56,37 +61,37 @@ def new_jobs_check(scrapers: set[AbstractScraper], storage: Storage) -> set[tupl
     the new ones are identified.
     """
 
-    # For each scraper, scrape the open jobs and add them
-    # to cumulative list of open jobs
-    open_jobs = set()
+    # For each scraper, scrape the open jobs and add
+    # source-scoped new jobs to a cumulative set.
+    new_jobs = set()
 
     for scraper in scrapers:
+        scraper_id = get_scraper_id(scraper)
+
+        if not storage.has_known_jobs_for_scraper(scraper_id):
+            storage.set_known_jobs_for_scraper(scraper_id, storage.get_known_jobs())
+
         # Arbitrary code execution, wrap in try/catch
         try:
             scraper_open_jobs = scraper.scrape_open_jobs()
-            for job in scraper_open_jobs:
-                open_jobs.add(job)
         except Exception as e:
-            print(f"Exception in scraper: {e}")
+            print(f"Exception in scraper {scraper_id}: {e}")
+            continue
 
-    # Make sure we got at least one open job
-    if len(open_jobs) < 1:
-        return open_jobs
+        if len(scraper_open_jobs) < 1:
+            print(f"Scraper {scraper_id} returned no jobs; skipping update.")
+            continue
 
-    # Now we know we have at least one open job,
-    # let's see if any of them are new
-    known_jobs = storage.get_known_jobs()
-    new_jobs = set()
+        known_jobs = storage.get_known_jobs_for_scraper(scraper_id)
 
-    # Collect all new jobs by iterating through
-    # all currently open jobs and adding all
-    # which are not already known to the set
-    for job in open_jobs:
-        if job not in known_jobs:
-            new_jobs.add(job)
+        # Collect all new jobs for this scraper by iterating
+        # through all currently open jobs and adding all which
+        # are not already known to the set.
+        for job in scraper_open_jobs:
+            if job not in known_jobs:
+                new_jobs.add(job)
 
-    # Update list of known jobs
-    storage.set_known_jobs(open_jobs)
+        storage.set_known_jobs_for_scraper(scraper_id, scraper_open_jobs)
 
     num_of_new_jobs = len(new_jobs)
     print(f"Detected {num_of_new_jobs} new job(s).")
